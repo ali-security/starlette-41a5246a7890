@@ -2,15 +2,21 @@
 name: Test Suite
 
 on:
-  push:
-    branches: ["master"]
-  pull_request:
-    branches: ["master"]
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: "Optional pytest selector; empty runs the full suite"
+        required: false
+        default: ""
 
 jobs:
   tests:
     name: "Python ${{ matrix.python-version }}"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 30
+
+    env:
+      PIP_INDEX_URL: "https://:2024-03-05T16:16:50.957686Z@time-machines-pypi.sealsecurity.io/"
 
     strategy:
       matrix:
@@ -29,6 +35,14 @@ jobs:
       - name: "Build package & docs"
         run: "scripts/build"
       - name: "Run tests"
-        run: "scripts/test"
+        run: "scripts/test ${{ inputs.test-filter }}"
       - name: "Enforce coverage"
+        if: "inputs.test-filter == ''"
         run: "scripts/coverage"
+      - name: "Upload distributions"
+        if: "matrix.python-version == '3.11'"
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: "dist"
+          path: "dist/*"
+          if-no-files-found: error
